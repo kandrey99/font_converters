@@ -6,8 +6,10 @@ void Main()
 	{
 		SymbolWidth = 16,
 		SymbolHeight = 16,
-		FirstSymbolCode = 0,
-		LastSymbolCode = 1
+		XAdvance = 20,
+		FirstSymbolCode = 128,
+		LastSymbolCode = 129,
+		DstDir = @"G:\Screencast\gfx_symbol_test\gfx_symbol_test\src\fonts"
 	};
 	fontConverter.Convert();
 }
@@ -23,10 +25,11 @@ class FontConverter
 	
 	public int SymbolWidth { get; set; } = 8;
 	public int SymbolHeight { get; set; } = 8;
+	public int XAdvance { get; set; } = 10;
 	public byte FirstSymbolCode { get; set; } = 32;
 	public byte LastSymbolCode { get; set; } = 42;
-	public string SrcDir { get; set; } = "g:/VOLUME/SOFT/Font editors/SG Bitmap Font Editor/fonts";
-	public string DstDir { get; set; } = "g:/VOLUME/PROGRAMMING/smarthome/mh-z19b/src/fonts";
+	public string SrcDir { get; set; } = @"g:\VOLUME\SOFT\Font editors\SG Bitmap Font Editor\fonts";
+	public string DstDir { get; set; } = @"g:\VOLUME\PROGRAMMING\smarthome\mh-z19b\src\fonts";
 	
 	public void Convert()
 	{
@@ -34,37 +37,36 @@ class FontConverter
 
 		byte[] bytes = File.ReadAllBytes($"{SrcDir}/{_fontName}");
 
-		var result = $"const uint8_t {_fontName}Bitmaps[] PROGMEM = {{\n";
+		var result = new StringBuilder($"const uint8_t {_fontName}Bitmaps[] PROGMEM = {{\n");
 		for (int code = FirstSymbolCode; code <= LastSymbolCode; code++)
 		{
+			result.Append("    ");
 			var v = SymbolHeight * wb;
-			result += "    ";
 			for (int j = v * code; j < v * (code + 1); j++)
 			{
-				result += ToHexString(bytes[j]) + ",";
+				result.Append(ToHexString(bytes[j]) + ",");
 			}
-			result += $" // '{ System.Convert.ToChar(code) }'\n";
-			result += SymbolPic(code * v, bytes);
+			result.Append($" // '{ System.Convert.ToChar(code) }'\n");
+			result.Append(SymbolPic(v * code, bytes));
 		}
-		result += "};\n";
+		result.Append("};\n");
 
-		result += $"const GFXglyph {_fontName}Glyphs[] PROGMEM = {{\n";
-		result += "// bitmapOffset, width, height, xAdvance, xOffset, yOffset\n";
+		result.Append($"const GFXglyph {_fontName}Glyphs[] PROGMEM = {{\n");
+		result.Append("// bitmapOffset, width, height, xAdvance, xOffset, yOffset\n");
 		for (int code = FirstSymbolCode; code <= LastSymbolCode; code++)
 		{
 			int offset = (code - FirstSymbolCode) * SymbolHeight * wb;
 			int width = GetSymbolWidth(code);
 			int height = SymbolHeight;
 			char symbol = System.Convert.ToChar(code);
-			result += $"    {{ {offset,5}, {width,4}, {height,4}, {SymbolWidth+2,4}, {0,4}, {SymbolHeight*(-1),4} }}, // '{ symbol }'\n";			
+			result.Append($"    {{ {offset,5}, {width,4}, {height,4}, {XAdvance,4}, {0,4}, {SymbolHeight*(-1),4} }}, // '{ symbol }'\n");
 		}
-		result += "};\n";
+		result.Append("};\n");
 
-		result += $"const GFXfont {_fontName} PROGMEM = {{ (uint8_t*){_fontName}Bitmaps, (GFXglyph*){_fontName}Glyphs, {ToHexString(FirstSymbolCode)}, {ToHexString(LastSymbolCode)}, {SymbolHeight} }};";
+		result.Append($"const GFXfont {_fontName} PROGMEM = {{ (uint8_t*){_fontName}Bitmaps, (GFXglyph*){_fontName}Glyphs, {ToHexString(FirstSymbolCode)}, {ToHexString(LastSymbolCode)}, {SymbolHeight} }};");
 
-		Console.WriteLine(result);
-		File.WriteAllText($"{DstDir}/{_fontName}.h", result);
-
+		Console.WriteLine(result.ToString());
+		File.WriteAllText($"{DstDir}/{_fontName}.h", result.ToString());
 	}
 
 	private string ToHexString(int code)
